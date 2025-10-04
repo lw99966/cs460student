@@ -91,7 +91,7 @@
                     // cube.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
 
                     // new torus
-                    var pink_geometry = new THREE.TorusKnotGeometry(10, 3, 100, 6);
+                    var pink_geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
                     var pink_material = new THREE.MeshStandardMaterial({ color: "hotpink"}); 
                     var pink_torus = new THREE.Mesh(pink_geometry, pink_material);
                     pink_torus.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
@@ -158,7 +158,7 @@
 
                 // part 2
                 // replace cube with torus
-                var geometry = new THREE.TorusKnotGeometry(10, 3, 100, 6);
+                var geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
                 var material = new THREE.MeshStandardMaterial({ color: 'darkblue'}); 
                 var torus = new THREE.Mesh(geometry, material);
                 scene.add(torus);
