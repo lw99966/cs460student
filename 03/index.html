@@ -130,6 +130,7 @@
 
                 //part 7
                 window.onkeypress = function(e) {
+                    controls.enabled = false;
                     if (e.key == 'f') {
                         FLICKERING = !FLICKERING;
                     }
@@ -137,6 +138,7 @@
                     if (e.key == 'w') {
                         WIREFRAME = !WIREFRAME;
                     }
+                    controls.enabled = true;
                 }
 
 
