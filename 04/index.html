@@ -383,7 +383,16 @@
         };
 
     </script>
+
     <body>
         <canvas id="c"></canvas>
+        <audio id="music" loop>
+            <source src="https://lw99966.github.io/cs460student/04/sea.mp3" type="audio/mpeg">
+        </audio>
+        <script>
+        window.addEventListener('click', function music() {
+            document.getElementById('music').play();
+        }, { once: true });
+        </script>
     </body>
 </html>
