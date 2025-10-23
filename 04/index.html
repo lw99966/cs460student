@@ -144,7 +144,7 @@
             }
 
             // part 11
-            all_fish.push( createFish( [0, 0, 0], [1,0,0,1], 2,-1) );
+            all_fish.push( createFish( [0, 0, 0], [1,0,0,1], 2, -1) );
 
             animate();
 
@@ -200,11 +200,11 @@
             gl.bufferData( gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW ); // put data in
             gl.bindBuffer( gl.ELEMENT_ARRAY_BUFFER, null ); // unbind
 
-            eye_vertex = new Float32Array([0.15, 0.1, 0.0]);
-
             // part 11
-            if (direction ==-1) {
-                eye_vertex = new Float32Array([0.15,-0.1, 0.0]);
+            if (direction == -1) {
+                eye_vertex = new Float32Array([0.15, -0.1, 0.0]);
+            } else {
+                eye_vertex = new Float32Array([0.15, 0.1, 0.0]);
             }
 
             eye_v_buffer = gl.createBuffer(); // create
@@ -273,7 +273,7 @@
 
                 if (current_offset[0] >= 1) {
 
-                    current_direction =-1;
+                    current_direction = -1;
                 
                 }
 
@@ -369,7 +369,7 @@
 
                 gl.enableVertexAttribArray ( a_position );
  
-                gl.bindBuffer( gl.ARRAY_BUFFER, eye_v_buffer );
+                gl.bindBuffer( gl.ARRAY_BUFFER, current_eye_v_buffer );
  
                 gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
  
