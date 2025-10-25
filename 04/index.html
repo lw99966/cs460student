@@ -269,12 +269,10 @@
                 // part 5
                 current_offset[0] += 0.01;
                 current_offset[1] += 0.1*Math.random();
-                current_offset[1]-= 0.1*Math.random();
+                current_offset[1] -= 0.1*Math.random();
 
                 if (current_offset[0] >= 1) {
-
                     current_direction = -1;
-                
                 }
 
                 current_offset[0] *= current_direction;
@@ -343,7 +341,7 @@
                                                 ]);
 
                 if (r == all_fish.length - 1) {
-                    // the large fish aka. first object should still be red!
+                    // the large fish should be red!
                     current_color = [1,0,0,.7];
                 }
                 
