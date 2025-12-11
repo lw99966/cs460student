@@ -1,0 +1,303 @@
+<html>
+    <head>
+        <title>3D "Shadow" Box</title>
+        <style>
+            html, body {
+                background-color: black;
+                margin: 0;
+                padding: 0%;
+                height: 100%;
+                overflow: hidden;
+            }
+        </style>
+
+        <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@latest/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@latest/examples/jsm/"
+            }
+        }
+        </script>
+
+        <script type = "module">
+            import * as THREE from 'three';
+            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+            var scene, camera, renderer, controls, size, dist;
+
+            window.onload = function() {
+                scene = new THREE.Scene();
+
+                var fov = 75;
+                var ratio = window.innerWidth/window.innerHeight;
+                var zNear = 0.1;
+                var zFar = 10000;
+                camera = new THREE.PerspectiveCamera(fov, ratio, zNear, zFar);
+
+                renderer = new THREE.WebGLRenderer({antialias: true});
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                document.body.appendChild(renderer.domElement);
+
+                var ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                scene.add(ambientLight);
+
+                controls = new OrbitControls(camera, renderer.domElement);
+
+
+                var object = makeCat();
+                autoSize(object);
+                scene.add(object);
+                var shadows = invisible(object);
+                scene.add(shadows);
+
+                document.getElementById("switchObjects").addEventListener("click",() => {
+                    scene.remove(object);
+                    scene.remove(shadows);
+
+                    if (object.userData.type === "house") {
+                        object = makeCat();
+                    } else {
+                        object = makeHouse();
+                    }
+
+                    autoSize(object);
+                    scene.add(object);
+                    shadows = invisible(object);
+                    scene.add(shadows);                    
+                });
+
+                
+
+                var boxA = box();
+                document.getElementById("switchWalls").addEventListener("click",() => {
+                    boxA.children.forEach(wall => {
+                        wall.material.opacity = (wall.material.opacity === 1 ? 0.3 : 1);
+                    });
+                });
+
+                var lighting = lights();
+
+                camera.position.set(0, 0, size*2);        
+
+                animate();
+            }
+
+            // test object
+            function makeHouse(){
+                var group = new THREE.Group();
+
+                var bodyGeo = new THREE.BoxGeometry(10, 5, 4);
+                var bodyMat = new THREE.MeshPhongMaterial({
+                    color: 0x888888
+                });
+                
+                var body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.set(0, -2, 0);
+                body.castShadow = true;
+
+                var roofGeo = new THREE.ConeGeometry(5, 3, 15);
+                var roofMat = new THREE.MeshPhongMaterial({
+                    color: 0xaa3333
+                });
+
+                var roof = new THREE.Mesh(roofGeo, roofMat);
+                roof.position.set(0, 2, 0);
+                roof.castShadow = true;
+
+                group.add(body);
+                group.add(roof);
+                group.userData.type = "house";
+
+                return group;
+            }
+
+            // test object2
+            function makeCat() {
+                var group = new THREE.Group();
+
+                var body = new THREE.Mesh(
+                    new THREE.SphereGeometry(2, 16, 16),
+                    new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+                );
+                body.castShadow = true;
+
+                var head = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.2, 16, 16),
+                    new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+                );
+                head.position.set(0, 2.5, 0);
+                head.castShadow = true;
+
+                var earGeo = new THREE.ConeGeometry(0.4, 0.8, 4);
+                var earMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+                var earL = new THREE.Mesh(earGeo, earMat);
+                earL.position.set(-0.6, 3.5, 0);
+                earL.castShadow = true;
+                var earR = earL.clone();
+                earR.position.set(0.6, 3.5, 0);
+                earR.castShadow = true;
+
+                var tail = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.2, 0.2, 3, 8),
+                    new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+                );
+                tail.position.set(-2, -0.5, 0);
+                tail.rotation.z = Math.PI/4;
+                tail.castShadow = true;
+
+                group.add(body);
+                group.add(head);
+                group.add(earL, earR);
+                group.add(tail);
+                group.userData.type = "cat";
+
+                return group;
+                }
+
+
+            function autoSize(object) {
+                var sizeBox = new THREE.Box3().setFromObject(object);
+                var sizeVec = new THREE.Vector3();
+                sizeBox.getSize(sizeVec);
+                var maxSize = Math.max(sizeVec.x, sizeVec.y, sizeVec.z);
+                size = maxSize * 2;
+                return size;
+            }
+
+            function box() {
+                var walls = new THREE.Group();
+                dist = size/2;
+
+                function makeWall() {
+                    var wallGeo = new THREE.PlaneGeometry(size,size);
+                    var wallMaterial = new THREE.MeshPhongMaterial({
+                        color: 0xffffff,
+                        transparent: true,
+                        opacity: 1,
+                        side: THREE.DoubleSide
+                    });
+                    var wall = new THREE.Mesh(wallGeo, wallMaterial);
+                    wall.receiveShadow = true;
+                    return wall;
+                }
+
+                var wallF = makeWall();
+                wallF.position.set(0, 0, dist);
+
+                var wallB = makeWall();
+                wallB.position.set(0, 0, -dist);
+
+                var wallU = makeWall();
+                wallU.position.set(0, dist, 0);
+                wallU.rotation.x = Math.PI/2;
+
+                var wallD = makeWall();
+                wallD.position.set(0, -dist, 0);
+                wallD.rotation.x = Math.PI/2;
+
+                var wallR = makeWall();
+                wallR.position.set(dist, 0, 0);
+                wallR.rotation.y = Math.PI/2;
+
+                var wallL = makeWall();
+                wallL.position.set(-dist, 0, 0);
+                wallL.rotation.y = Math.PI/2;
+
+                walls.add(wallF, wallB, wallU, wallD, wallR, wallL);
+                scene.add(walls);
+                return walls;
+            }
+
+            function lights() {
+                var lighting = new THREE.Group();
+                dist = 2*size;
+
+                function makeLight() {
+                    var light = new THREE.DirectionalLight(0xffffff, 10);
+                    light.castShadow = true;
+                    light.shadow.mapSize.set(1024,1024);
+                    return light;
+                }
+
+                var lightF = makeLight();
+                lightF.position.set(0, 0, dist);
+
+                var lightB = makeLight();
+                lightB.position.set(0, 0, -dist);
+
+                var lightU = makeLight();
+                lightU.position.set(0, dist, 0);
+
+                var lightD = makeLight();
+                lightD.position.set(0, -dist, 0);
+
+                var lightR = makeLight();
+                lightR.position.set(dist, 0, 0);
+
+                var lightL = makeLight();
+                lightL.position.set(-dist, 0, 0);
+
+                lighting.add(lightF, lightB, lightU, lightD, lightR, lightL);
+                scene.add(lighting);
+                return lighting;
+            }
+
+            function invisible(object) {
+                var shadows = new THREE.Group();
+                dist = size;
+
+                for (var i = 0; i < 6; i++) {
+                    var shadow = object.clone();
+                    shadow.traverse(child => {
+                        if (child.isMesh) {
+                            child.material = child.material.clone();
+                            child.material.colorWrite = false;
+                            child.material.depthWrite = false;
+                        }
+                    });
+
+                    switch(i) {
+                        case 0:
+                            shadow.position.set(-dist, 0, 0);
+                            break;
+                        case 1:
+                            shadow.position.set(dist, 0, 0);
+                            break;
+                        case 2:
+                            shadow.position.set(0, -dist, 0);
+                            break;
+                        case 3:
+                            shadow.position.set(0, dist, 0);
+                            break;
+                        case 4:
+                            shadow.position.set(0, 0, -dist);
+                            break;
+                        case 5:
+                            shadow.position.set(0, 0, dist);
+                            break;
+                    }
+                    
+                    shadows.add(shadow);
+                }
+                
+                return shadows;
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                controls.update();
+
+                renderer.render(scene, camera)
+            }
+        </script>
+    </head>
+
+    <body>
+        <button id="switchWalls">Walls</button>
+        <button id="switchObjects">Objects</button>
+    </body>
+
+</html>
