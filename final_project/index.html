@@ -23,8 +23,11 @@
         <script type = "module">
             import * as THREE from 'three';
             import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+            import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
             var scene, camera, renderer, controls, size, dist;
+            var object, shadows, lighting, Abox;
+            var isRotating;
 
             window.onload = function() {
                 scene = new THREE.Scene();
@@ -45,43 +48,109 @@
 
                 controls = new OrbitControls(camera, renderer.domElement);
 
+                var raycaster = new THREE.Raycaster();
+                var mouse = new THREE.Vector2();
 
-                var object = makeCat();
-                autoSize(object);
-                scene.add(object);
-                var shadows = invisible(object);
-                scene.add(shadows);
+                var mainObject = makeHouse();
+                makeScene(mainObject);
 
                 document.getElementById("switchObjects").addEventListener("click",() => {
-                    scene.remove(object);
-                    scene.remove(shadows);
+                    removeScene(mainObject, shadows, Abox, lighting);
 
-                    if (object.userData.type === "house") {
-                        object = makeCat();
+                    if (mainObject.userData.type === "house") {
+                        mainObject = makeCat();
                     } else {
-                        object = makeHouse();
+                        mainObject = makeHouse();
                     }
 
-                    autoSize(object);
-                    scene.add(object);
-                    shadows = invisible(object);
-                    scene.add(shadows);                    
+                    makeScene(mainObject);
                 });
 
-                
-
-                var boxA = box();
                 document.getElementById("switchWalls").addEventListener("click",() => {
-                    boxA.children.forEach(wall => {
-                        wall.material.opacity = (wall.material.opacity === 1 ? 0.3 : 1);
-                    });
+                    if (! Abox) return;
+
+                    var anyVisible = Abox.children.some(
+                        wall => wall.material.opacity === 1
+                    );
+
+                    if (anyVisible) {
+                        Abox.children.forEach(wall => {
+                            wall.material.opacity = 0.1;
+                        });
+                    } else {
+                        Abox.children.forEach(wall => {
+                            wall.material.opacity = 1;
+                        });
+                    }
                 });
 
-                var lighting = lights();
+                var loader = new GLTFLoader();
+                document.getElementById("uploadObject").addEventListener("input",() => {
+                    removeScene(mainObject, shadows, Abox, lighting);
 
-                camera.position.set(0, 0, size*2);        
+                    var file = event.target.files[0];
+                    if (! file) return;
+
+                    var url = URL.createObjectURL(file);
+
+                    loader.load(url, function(gltf) {
+                        mainObject = gltf.scene;
+                        mainObject.userData.type = "upload";
+
+                        makeScene(mainObject);
+
+                        URL.revokeObjectURL(url);
+                    })
+
+                    event.target.value = "";
+                });
+
+                window.addEventListener("click",(e) => {
+                    mouse.x = (e.clientX/window.innerWidth) *2 -1;
+                    mouse.y = -(e.clientY/window.innerHeight) *2 +1;
+
+                    raycaster.setFromCamera(mouse, camera);
+
+                    var intersects = raycaster.intersectObjects(Abox.children, true);
+
+                    if (intersects.length > 0) {
+                        var wall = intersects[0].object;
+
+                        wall.material.opacity = (wall.material.opacity === 1 ? 0.1 : 1);
+                    }
+                });
+
+                isRotating = false;
+
+                document.getElementById("switchRotation").addEventListener("click",() => {
+                    isRotating = !isRotating;
+                });
 
                 animate();
+            }
+
+            function makeScene(object) {
+                object = reCenter(object);
+                size = autoSize(object);
+                scene.add(object);
+                shadows = invisible(object, size);
+                scene.add(shadows);
+
+                Abox = box(size);
+
+                lighting = lights(size);
+
+                camera.position.set(0, 0, size*2);
+
+                return {shadows, Abox, lighting}
+            }
+
+            function removeScene(object, shadows, Abox, lighting) {
+                scene.remove(object);
+                scene.remove(shadows);
+                scene.remove(Abox);
+                scene.remove(lighting);
+                camera.position.set(0, 0, 0);
             }
 
             // test object
@@ -90,21 +159,19 @@
 
                 var bodyGeo = new THREE.BoxGeometry(10, 5, 4);
                 var bodyMat = new THREE.MeshPhongMaterial({
-                    color: 0x888888
+                    color: "blue"
                 });
                 
                 var body = new THREE.Mesh(bodyGeo, bodyMat);
                 body.position.set(0, -2, 0);
-                body.castShadow = true;
 
                 var roofGeo = new THREE.ConeGeometry(5, 3, 15);
                 var roofMat = new THREE.MeshPhongMaterial({
-                    color: 0xaa3333
+                    color: "red"
                 });
 
                 var roof = new THREE.Mesh(roofGeo, roofMat);
                 roof.position.set(0, 2, 0);
-                roof.castShadow = true;
 
                 group.add(body);
                 group.add(roof);
@@ -119,33 +186,36 @@
 
                 var body = new THREE.Mesh(
                     new THREE.SphereGeometry(2, 16, 16),
-                    new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+                    new THREE.MeshPhongMaterial({
+                        color: "grey"
+                    })
                 );
-                body.castShadow = true;
 
                 var head = new THREE.Mesh(
                     new THREE.SphereGeometry(1.2, 16, 16),
-                    new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+                    new THREE.MeshPhongMaterial({
+                        color: "white"
+                    })
                 );
                 head.position.set(0, 2.5, 0);
-                head.castShadow = true;
 
-                var earGeo = new THREE.ConeGeometry(0.4, 0.8, 4);
-                var earMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+                var earGeo = new THREE.ConeGeometry(0.4, 1.5, 4);
+                var earMat = new THREE.MeshPhongMaterial({
+                    color: "black"
+                });
                 var earL = new THREE.Mesh(earGeo, earMat);
                 earL.position.set(-0.6, 3.5, 0);
-                earL.castShadow = true;
                 var earR = earL.clone();
                 earR.position.set(0.6, 3.5, 0);
-                earR.castShadow = true;
 
                 var tail = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.2, 0.2, 3, 8),
-                    new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+                    new THREE.MeshPhongMaterial({
+                        color: "black"
+                    })
                 );
                 tail.position.set(-2, -0.5, 0);
                 tail.rotation.z = Math.PI/4;
-                tail.castShadow = true;
 
                 group.add(body);
                 group.add(head);
@@ -154,23 +224,34 @@
                 group.userData.type = "cat";
 
                 return group;
-                }
+            }
 
+            function reCenter(object) {
+                var sizeBox = new THREE.Box3().setFromObject(object);
+
+                var center = sizeBox.getCenter(new THREE.Vector3());
+                object.position.set(-center.x, -center.y, -center.z);
+
+                return(object)
+            }
 
             function autoSize(object) {
                 var sizeBox = new THREE.Box3().setFromObject(object);
+
                 var sizeVec = new THREE.Vector3();
                 sizeBox.getSize(sizeVec);
+
                 var maxSize = Math.max(sizeVec.x, sizeVec.y, sizeVec.z);
-                size = maxSize * 2;
+                size = maxSize*2;
+
                 return size;
             }
 
-            function box() {
+            function box(size) {
                 var walls = new THREE.Group();
                 dist = size/2;
 
-                function makeWall() {
+                function makeWall(x, y, z) {
                     var wallGeo = new THREE.PlaneGeometry(size,size);
                     var wallMaterial = new THREE.MeshPhongMaterial({
                         color: 0xffffff,
@@ -179,30 +260,25 @@
                         side: THREE.DoubleSide
                     });
                     var wall = new THREE.Mesh(wallGeo, wallMaterial);
+                    wall.position.set(x, y, z);
                     wall.receiveShadow = true;
                     return wall;
                 }
 
-                var wallF = makeWall();
-                wallF.position.set(0, 0, dist);
+                var wallF = makeWall(0, 0, dist);
 
-                var wallB = makeWall();
-                wallB.position.set(0, 0, -dist);
+                var wallB = makeWall(0, 0, -dist);
 
-                var wallU = makeWall();
-                wallU.position.set(0, dist, 0);
+                var wallU = makeWall(0, dist, 0);
                 wallU.rotation.x = Math.PI/2;
 
-                var wallD = makeWall();
-                wallD.position.set(0, -dist, 0);
+                var wallD = makeWall(0, -dist, 0);
                 wallD.rotation.x = Math.PI/2;
 
-                var wallR = makeWall();
-                wallR.position.set(dist, 0, 0);
+                var wallR = makeWall(dist, 0, 0);
                 wallR.rotation.y = Math.PI/2;
 
-                var wallL = makeWall();
-                wallL.position.set(-dist, 0, 0);
+                var wallL = makeWall(-dist, 0, 0);
                 wallL.rotation.y = Math.PI/2;
 
                 walls.add(wallF, wallB, wallU, wallD, wallR, wallL);
@@ -210,72 +286,79 @@
                 return walls;
             }
 
-            function lights() {
-                var lighting = new THREE.Group();
+            function lights(size) {
+                lighting = new THREE.Group();
                 dist = 2*size;
 
-                function makeLight() {
-                    var light = new THREE.DirectionalLight(0xffffff, 10);
+                function makeLight(x, y, z) {
+                    var light = new THREE.DirectionalLight(0xffffff, 2);
+                    light.position.set(x, y, z);
                     light.castShadow = true;
-                    light.shadow.mapSize.set(1024,1024);
+                    light.shadow.mapSize.set(1024, 1024);
+
+                    light.shadow.camera.right = size/2;
+                    light.shadow.camera.left = -size/2;
+                    light.shadow.camera.top = size/2;
+                    light.shadow.camera.bottom = -size/2;
+
+                    light.shadow.camera.near = 0.1;
+                    light.shadow.camera.far = 2*dist;
+
                     return light;
                 }
 
-                var lightF = makeLight();
-                lightF.position.set(0, 0, dist);
+                var lightF = makeLight(0, 0, dist);
 
-                var lightB = makeLight();
-                lightB.position.set(0, 0, -dist);
+                var lightB = makeLight(0, 0, -dist);
 
-                var lightU = makeLight();
-                lightU.position.set(0, dist, 0);
+                var lightU = makeLight(0, dist, 0);
 
-                var lightD = makeLight();
-                lightD.position.set(0, -dist, 0);
+                var lightD = makeLight(0, -dist, 0);
 
-                var lightR = makeLight();
-                lightR.position.set(dist, 0, 0);
+                var lightR = makeLight(dist, 0, 0);
 
-                var lightL = makeLight();
-                lightL.position.set(-dist, 0, 0);
+                var lightL = makeLight(-dist, 0, 0);
 
                 lighting.add(lightF, lightB, lightU, lightD, lightR, lightL);
                 scene.add(lighting);
                 return lighting;
             }
 
-            function invisible(object) {
-                var shadows = new THREE.Group();
+            function invisible(object, size) {
+                shadows = new THREE.Group();
                 dist = size;
+                var origin = object.clone();
+                origin.traverse(child => {
+                    if (child.isMesh) {
+                        child.material = child.material.clone();
+                        child.castShadow = true;
+                        child.material.colorWrite = false; // true for test, false for run
+                        child.material.depthWrite = false; // same
+                    }
+                });
+
 
                 for (var i = 0; i < 6; i++) {
-                    var shadow = object.clone();
-                    shadow.traverse(child => {
-                        if (child.isMesh) {
-                            child.material = child.material.clone();
-                            child.material.colorWrite = false;
-                            child.material.depthWrite = false;
-                        }
-                    });
+                    var shadow = origin.clone();
 
                     switch(i) {
                         case 0:
-                            shadow.position.set(-dist, 0, 0);
+                            shadow.translateX(-dist);
                             break;
                         case 1:
-                            shadow.position.set(dist, 0, 0);
+                            shadow.translateX(dist);
                             break;
                         case 2:
-                            shadow.position.set(0, -dist, 0);
+                            shadow.translateY(-dist);
                             break;
                         case 3:
-                            shadow.position.set(0, dist, 0);
+                            shadow.translateY(dist);
                             break;
                         case 4:
-                            shadow.position.set(0, 0, -dist);
+                            shadow.translateZ(-dist);
                             break;
                         case 5:
-                            shadow.position.set(0, 0, dist);
+                            shadow.translateZ(dist);
                             break;
                     }
                     
@@ -288,6 +371,12 @@
             function animate() {
                 requestAnimationFrame(animate);
 
+                if (isRotating) {
+                    Abox.rotation.x += 0.001 + Math.random()/200;
+                    Abox.rotation.y += 0.001 + Math.random()/200;
+                    Abox.rotation.z += 0.001 + Math.random()/200;
+                }
+
                 controls.update();
 
                 renderer.render(scene, camera)
@@ -296,8 +385,14 @@
     </head>
 
     <body>
-        <button id="switchWalls">Walls</button>
-        <button id="switchObjects">Objects</button>
+        <div style="position: fixed; top:10px; left:10px;">
+            <button id="switchObjects">Switch test objects</button>
+            <button id="switchWalls">Switch box</button>
+            <input type="file" id="uploadObject" accept=".glb,.gltf" />
+        </div>
+        <div style="position:fixed; top:10px; right: 10px;">
+            <button id="switchRotation">Rotate box</button>
+        </div>
     </body>
 
 </html>
